@@ -305,19 +305,61 @@ def save_project_to_db(project_name):
         st.error(f"Error saving project: {str(e)}")
         return None
 
-def save_response_to_db(project_id, question_id, response_value, score):
-    """Save individual response to database"""
+def save_response_to_db(project_id, question_id, response_value, score=0):
+    """Save or update individual response to database"""
     try:
-        data = {
-            "project_id": project_id,
-            "question_id": question_id,
-            "response_value": response_value,
-            "score": score,
-            "created_at": datetime.now().isoformat()
-        }
-        supabase.table("responses").insert(data).execute()
+        # Check if response already exists
+        existing = supabase.table("responses")\
+            .select("*")\
+            .eq("project_id", project_id)\
+            .eq("question_id", question_id)\
+            .execute()
+        
+        if existing.data:
+            # Update existing response
+            supabase.table("responses")\
+                .update({
+                    "response_value": str(response_value),
+                    "score": score,
+                    "created_at": datetime.now().isoformat()
+                })\
+                .eq("project_id", project_id)\
+                .eq("question_id", question_id)\
+                .execute()
+        else:
+            # Insert new response
+            data = {
+                "project_id": project_id,
+                "question_id": question_id,
+                "response_value": str(response_value),
+                "score": score,
+                "created_at": datetime.now().isoformat()
+            }
+            supabase.table("responses").insert(data).execute()
     except Exception as e:
         st.error(f"Error saving response: {str(e)}")
+
+def load_responses_from_db(project_id):
+    """Load all responses for a project from database"""
+    try:
+        result = supabase.table("responses")\
+            .select("*")\
+            .eq("project_id", project_id)\
+            .execute()
+        
+        if result.data:
+            responses = {}
+            for row in result.data:
+                # Convert response_value back to integer if it's a number
+                try:
+                    responses[row['question_id']] = int(row['response_value'])
+                except (ValueError, TypeError):
+                    responses[row['question_id']] = row['response_value']
+            return responses
+        return {}
+    except Exception as e:
+        st.error(f"Error loading responses: {str(e)}")
+        return {}
 
 def upload_file_to_storage(project_id, file, doc_type):
     """Upload file to Supabase Storage"""
@@ -1547,6 +1589,9 @@ def main():
                 if project_id:
                     st.session_state.project_id = project_id
                     st.session_state.responses['project_name'] = project_name
+                    # Load any existing responses from database
+                    existing_responses = load_responses_from_db(project_id)
+                    st.session_state.responses.update(existing_responses)
                     st.success(f"✅ Project '{project_name}' created successfully!")
                     st.session_state.current_section = 1
                     st.rerun()
@@ -1580,6 +1625,8 @@ def main():
                 help="Evaluate cost reduction through efficiency improvements, elimination of redundancies, or optimization of existing expenses."
             )
             st.session_state.responses['q3a'] = q3a
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q3a', q3a)
         
         with col2:
             q3b = st.selectbox(
@@ -1589,6 +1636,8 @@ def main():
                 help="Evaluate prevention of future costs such as maintenance, penalties, contract leakage, or other cost exposure mitigation."
             )
             st.session_state.responses['q3b'] = q3b
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q3b', q3b)
         
         st.markdown("---")
         
@@ -1604,6 +1653,8 @@ def main():
                 help="Evaluate the project's ability to enter new markets, expand market share, or reach new customer segments."
             )
             st.session_state.responses['q4a'] = q4a
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q4a', q4a)
         
         with col2:
             q4b = st.selectbox(
@@ -1613,6 +1664,8 @@ def main():
                 help="Evaluate the project's ability to generate new revenue or increase existing revenue streams."
             )
             st.session_state.responses['q4b'] = q4b
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q4b', q4b)
         
         with col3:
             q4c = st.selectbox(
@@ -1622,6 +1675,8 @@ def main():
                 help="Evaluate the project's ability to improve gross profit margin or increase gross profit contribution."
             )
             st.session_state.responses['q4c'] = q4c
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q4c', q4c)
         
         st.markdown("---")
         
@@ -1638,6 +1693,8 @@ def main():
                 key="q5a"
             )
             st.session_state.responses['q5a'] = q5a
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q5a', q5a)
         
         with col2:
             q5b = st.selectbox(
@@ -1648,6 +1705,8 @@ def main():
                 key="q5b"
             )
             st.session_state.responses['q5b'] = q5b
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q5b', q5b)
         
         with col3:
             q5c = st.selectbox(
@@ -1658,6 +1717,8 @@ def main():
                 key="q5c"
             )
             st.session_state.responses['q5c'] = q5c
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q5c', q5c)
         
         st.markdown("---")
         
@@ -1670,6 +1731,8 @@ def main():
             help="Evaluate the project's impact on reducing carbon emissions through process changes, technology adoption, or verified decarbonization programs."
         )
         st.session_state.responses['q6'] = q6
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q6', q6)
         
         st.markdown("---")
         
@@ -1685,6 +1748,8 @@ def main():
                 help="Assess improvements in process efficiency, resource utilization, and cycle time reduction."
             )
             st.session_state.responses['q7a'] = q7a
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q7a', q7a)
         
         with col2:
             q7b = st.selectbox(
@@ -1694,6 +1759,8 @@ def main():
                 help="Evaluate the technological advancement and digital transformation impact of the project."
             )
             st.session_state.responses['q7b'] = q7b
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q7b', q7b)
 
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Next: Financial Evaluation →", type="primary"):
@@ -1713,6 +1780,8 @@ def main():
                 help="NPV represents the difference between the present value of cash inflows and outflows over the project's lifetime."
             )
             st.session_state.responses['q8'] = q8
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q8', q8)
             
             q10 = st.selectbox(
                 "Payback Period",
@@ -1721,6 +1790,8 @@ def main():
                 help="Time required to recover the initial investment from the project's cash flows."
             )
             st.session_state.responses['q10'] = q10
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q10', q10)
         
         with col2:
             q9 = st.selectbox(
@@ -1730,6 +1801,8 @@ def main():
                 help="ROI measures the efficiency of the investment by comparing the gain from the investment to its cost."
             )
             st.session_state.responses['q9'] = q9
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q9', q9)
             
             q11 = st.selectbox(
                 "Internal Rate of Return (IRR)",
@@ -1738,6 +1811,8 @@ def main():
                 help="IRR is the discount rate that makes the NPV of all cash flows equal to zero."
             )
             st.session_state.responses['q11'] = q11
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q11', q11)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1775,6 +1850,8 @@ def main():
                     help="Frequent issues (>20% missing/inaccurate) = Very Likely | Occasional issues (5-20%) = Possible | Minimal issues (<5%) = Not Likely"
                 )
                 st.session_state.responses['q12_prob'] = q12_prob
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q12_prob', q12_prob)
             
             with col2:
                 st.markdown("**Impact (Severity)**")
@@ -1790,6 +1867,8 @@ def main():
                     help="Severe business impact (invalid results) = Very High | Limited effect (some rework) = Moderate | Minor errors (no major impact) = Very Low"
                 )
                 st.session_state.responses['q12_impact'] = q12_impact
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q12_impact', q12_impact)
         
         # Risk 2: Technological Complexity
         with st.expander("📋 Risk 2: Technological Complexity", expanded=True):
@@ -1810,6 +1889,8 @@ def main():
                     help="New/untested technology = Very Likely | Moderate risk (partial integration) = Possible | Proven technology = Not Likely"
                 )
                 st.session_state.responses['q13_prob'] = q13_prob
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q13_prob', q13_prob)
             
             with col2:
                 st.markdown("**Impact (Severity)**")
@@ -1825,6 +1906,8 @@ def main():
                     help="Critical system impact (project failure) = Very High | Localized disruptions = Moderate | Minimal impact = Very Low"
                 )
                 st.session_state.responses['q13_impact'] = q13_impact
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q13_impact', q13_impact)
         
         # Risk 3: Timeline Delays
         with st.expander("📋 Risk 3: Timeline Delays", expanded=True):
@@ -1845,6 +1928,8 @@ def main():
                     help="Unclear milestones/resources (>30% chance) = Very Likely | Some dependencies (10-30%) = Possible | Well-defined timeline (<10%) = Not Likely"
                 )
                 st.session_state.responses['q14_prob'] = q14_prob
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q14_prob', q14_prob)
             
             with col2:
                 st.markdown("**Impact (Severity)**")
@@ -1860,6 +1945,8 @@ def main():
                     help="Critically affects project success = Very High | Partial milestone slippage = Moderate | Minimal delay impact = Very Low"
                 )
                 st.session_state.responses['q14_impact'] = q14_impact
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q14_impact', q14_impact)
         
         # Risk 4: Budget Constraints
         with st.expander("📋 Risk 4: Budget Constraints", expanded=True):
@@ -1880,6 +1967,8 @@ def main():
                     help="Funding not secured (>10% chance) = Very Likely | Moderate uncertainty (5-10%) = Possible | Budget approved (<5%) = Not Likely"
                 )
                 st.session_state.responses['q15_prob'] = q15_prob
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q15_prob', q15_prob)
             
             with col2:
                 st.markdown("**Impact (Severity)**")
@@ -1895,6 +1984,8 @@ def main():
                     help="Funding gap leads to halt = Very High | Minor overspend (manageable) = Moderate | Full funding in place = Very Low"
                 )
                 st.session_state.responses['q15_impact'] = q15_impact
+        if 'project_id' in st.session_state and st.session_state.project_id:
+            save_response_to_db(st.session_state.project_id, 'q15_impact', q15_impact)
         
         col1, col2 = st.columns(2)
         with col1:
@@ -2004,6 +2095,8 @@ def main():
             )
             if q16 is not None:
                 st.session_state.responses['q16'] = q16
+                if 'project_id' in st.session_state and st.session_state.project_id:
+                    save_response_to_db(st.session_state.project_id, 'q16', q16)
             
             q17 = st.selectbox(
                 "2. Technical Expertise",
@@ -2014,6 +2107,8 @@ def main():
             )
             if q17 is not None:
                 st.session_state.responses['q17'] = q17
+                if 'project_id' in st.session_state and st.session_state.project_id:
+                    save_response_to_db(st.session_state.project_id, 'q17', q17)
             
             q18 = st.selectbox(
                 "3. Infrastructure Needs",
@@ -2024,6 +2119,8 @@ def main():
             )
             if q18 is not None:
                 st.session_state.responses['q18'] = q18
+                if 'project_id' in st.session_state and st.session_state.project_id:
+                    save_response_to_db(st.session_state.project_id, 'q18', q18)
             
             q19 = st.selectbox(
                 "4. Integration Complexity",
@@ -2034,6 +2131,8 @@ def main():
             )
             if q19 is not None:
                 st.session_state.responses['q19'] = q19
+                if 'project_id' in st.session_state and st.session_state.project_id:
+                    save_response_to_db(st.session_state.project_id, 'q19', q19)
             
             if st.button("Next: Operational Feasibility →", type="primary"):
                 st.session_state.feasibility_tab = 1
@@ -2061,6 +2160,8 @@ def main():
                 )
                 if response is not None:
                     st.session_state.responses[q_id] = response
+                    if 'project_id' in st.session_state and st.session_state.project_id:
+                        save_response_to_db(st.session_state.project_id, q_id, response)
             
             col1, col2 = st.columns(2)
             with col1:
@@ -2094,6 +2195,8 @@ def main():
                 )
                 if response is not None:
                     st.session_state.responses[q_id] = response
+                    if 'project_id' in st.session_state and st.session_state.project_id:
+                        save_response_to_db(st.session_state.project_id, q_id, response)
             
             col1, col2 = st.columns(2)
             with col1:
@@ -2127,6 +2230,8 @@ def main():
                 )
                 if response is not None:
                     st.session_state.responses[q_id] = response
+                    if 'project_id' in st.session_state and st.session_state.project_id:
+                        save_response_to_db(st.session_state.project_id, q_id, response)
             
             col1, col2 = st.columns(2)
             with col1:
@@ -2166,6 +2271,8 @@ def main():
         )
         if q35 is not None:
             st.session_state.responses['q35'] = q35
+            if 'project_id' in st.session_state and st.session_state.project_id:
+                save_response_to_db(st.session_state.project_id, 'q35', q35)
         
         st.markdown("---")
         
@@ -2179,6 +2286,8 @@ def main():
         )
         if q36 is not None:
             st.session_state.responses['q36'] = q36
+            if 'project_id' in st.session_state and st.session_state.project_id:
+                save_response_to_db(st.session_state.project_id, 'q36', q36)
         
         st.markdown("---")
         
@@ -2192,6 +2301,8 @@ def main():
         )
         if q37 is not None:
             st.session_state.responses['q37'] = q37
+            if 'project_id' in st.session_state and st.session_state.project_id:
+                save_response_to_db(st.session_state.project_id, 'q37', q37)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
